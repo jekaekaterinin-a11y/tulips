@@ -5,17 +5,18 @@
 <title>Учет тюльпанов</title>
 <style>
 body { font-family: Arial; background:#f4f4f4; padding:20px; }
-table { border-collapse: collapse; width: 700px; background:white; }
+table { border-collapse: collapse; width: 800px; background:white; }
 th, td { border:1px solid #ccc; padding:10px; text-align:center; }
 th { background:#222; color:white; }
 input { width:80px; padding:5px; text-align:center; }
 .low { background:#ffb3b3; }
 .total { font-weight:bold; background:#eee; }
+button { padding:6px 12px; cursor:pointer; margin-top:10px; }
 </style>
 </head>
 <body>
 
-<h2>Учет тюльпанов</h2>
+<h2>Онлайн учет тюльпанов</h2>
 
 <table id="stockTable">
 <thead>
@@ -26,15 +27,7 @@ input { width:80px; padding:5px; text-align:center; }
 <th>Остаток</th>
 </tr>
 </thead>
-<tbody>
-<tr><td>Красные</td><td>1000</td><td><input type="number" value="0"></td><td class="remain"></td></tr>
-<tr><td>Розовые</td><td>500</td><td><input type="number" value="180"></td><td class="remain"></td></tr>
-<tr><td>Белые</td><td>1000</td><td><input type="number" value="0"></td><td class="remain"></td></tr>
-<tr><td>Малиновые</td><td>500</td><td><input type="number" value="0"></td><td class="remain"></td></tr>
-<tr><td>Нежно фиол</td><td>500</td><td><input type="number" value="0"></td><td class="remain"></td></tr>
-<tr><td>Оранжевые пион</td><td>350</td><td><input type="number" value="0"></td><td class="remain"></td></tr>
-<tr><td>Коламбус пион</td><td>500</td><td><input type="number" value="0"></td><td class="remain"></td></tr>
-</tbody>
+<tbody></tbody>
 <tfoot>
 <tr class="total">
 <td>Общее</td>
@@ -45,42 +38,90 @@ input { width:80px; padding:5px; text-align:center; }
 </tfoot>
 </table>
 
+<!-- Кнопка для сохранения -->
+<button onclick="saveData()">Сохранить изменения</button>
+
 <script>
-function calculate() {
-    let rows = document.querySelectorAll("#stockTable tbody tr");
-    let totalBuy = 0;
-    let totalSold = 0;
-    let totalRemain = 0;
+const API_URL = "https://script.google.com/macros/s/AKfycbxBy7CLxqyxgYkAxTNlYyIcdzevRUXb92QoIG792MRVV_4ObR72MuX67UY1uIP_5_AV4Q/exec";
 
-    rows.forEach(row => {
-        let buy = parseInt(row.cells[1].innerText);
-        let soldInput = row.cells[2].querySelector("input");
-        let sold = parseInt(soldInput.value) || 0;
-        let remain = buy - sold;
+/* ===== Загрузка данных ===== */
+async function loadData() {
+  const response = await fetch(API_URL);
+  const data = await response.json();
 
-        row.cells[3].innerText = remain;
+  const tbody = document.querySelector("#stockTable tbody");
+  tbody.innerHTML = "";
 
-        if (remain < 100) {
-            row.cells[3].classList.add("low");
-        } else {
-            row.cells[3].classList.remove("low");
-        }
+  for (let i = 1; i < data.length; i++) {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${data[i][0]}</td>
+      <td>${data[i][1]}</td>
+      <td><input type="number" value="${data[i][2] || 0}"></td>
+      <td class="remain"></td>
+    `;
+    tbody.appendChild(row);
+  }
 
-        totalBuy += buy;
-        totalSold += sold;
-        totalRemain += remain;
-    });
-
-    document.getElementById("totalBuy").innerText = totalBuy;
-    document.getElementById("totalSold").innerText = totalSold;
-    document.getElementById("totalRemain").innerText = totalRemain;
+  calculate();
 }
 
-document.querySelectorAll("input").forEach(input => {
-    input.addEventListener("input", calculate);
+/* ===== Сохранение данных ===== */
+async function saveData() {
+  const rows = document.querySelectorAll("#stockTable tbody tr");
+  let soldValues = [];
+  rows.forEach(row => {
+    soldValues.push(parseInt(row.cells[2].querySelector("input").value) || 0);
+  });
+
+  await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify(soldValues)
+  });
+
+  alert("Сохранено");
+}
+
+/* ===== Расчет остатков ===== */
+function calculate() {
+  const rows = document.querySelectorAll("#stockTable tbody tr");
+  let totalBuy = 0;
+  let totalSold = 0;
+  let totalRemain = 0;
+
+  rows.forEach(row => {
+    let buy = parseInt(row.cells[1].innerText);
+    let sold = parseInt(row.cells[2].querySelector("input").value) || 0;
+    let remain = buy - sold;
+
+    row.cells[3].innerText = remain;
+
+    if (remain < 100) {
+      row.cells[3].classList.add("low");
+    } else {
+      row.cells[3].classList.remove("low");
+    }
+
+    totalBuy += buy;
+    totalSold += sold;
+    totalRemain += remain;
+  });
+
+  document.getElementById("totalBuy").innerText = totalBuy;
+  document.getElementById("totalSold").innerText = totalSold;
+  document.getElementById("totalRemain").innerText = totalRemain;
+}
+
+/* ===== Авторасчет при вводе ===== */
+document.addEventListener("input", function(e) {
+  if (e.target.tagName === "INPUT") calculate();
 });
 
-calculate();
+/* ===== Старт ===== */
+loadData();
 </script>
 
 </body>
